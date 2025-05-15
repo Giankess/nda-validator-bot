@@ -5,14 +5,14 @@ from pathlib import Path
 import winreg  # For Windows registry access
 import platform
 
-def run_command(command, shell=True):
+def run_command(command, shell=False):
     """Run a command and print its output in real-time."""
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        shell=shell,
-        universal_newlines=True
+        universal_newlines=True,
+        shell=shell
     )
     
     for line in process.stdout:
@@ -72,36 +72,31 @@ def setup_environment():
     # Create virtual environment if it doesn't exist
     if not venv_path.exists():
         print("Creating virtual environment...")
-        # Use system Python to create venv
-        python_exe = sys.executable
-        run_command(f'"{python_exe}" -m venv "{venv_path}"')
+        run_command([sys.executable, "-m", "venv", str(venv_path)])
     else:
         print("Virtual environment already exists. Cleaning up...")
-        # Remove the old environment
         if sys.platform == "win32":
-            run_command(f'rmdir /s /q "{venv_path}"')
+            run_command(["rmdir", "/s", "/q", str(venv_path)], shell=True)
         else:
-            run_command(f'rm -rf "{venv_path}"')
-        # Create fresh environment
-        python_exe = sys.executable
-        run_command(f'"{python_exe}" -m venv "{venv_path}"')
+            run_command(["rm", "-rf", str(venv_path)])
+        run_command([sys.executable, "-m", "venv", str(venv_path)])
     
-    # Determine the pip path based on the OS
+    # Determine the pip and python paths
     if sys.platform == "win32":
-        pip_path = venv_path / "Scripts" / "pip.exe"
-        python_path = venv_path / "Scripts" / "python.exe"
+        pip_path = venv_path / "Scripts" / "pip"
+        python_path = venv_path / "Scripts" / "python"
     else:
         pip_path = venv_path / "bin" / "pip"
         python_path = venv_path / "bin" / "python"
     
     # Upgrade pip
     print("Upgrading pip...")
-    run_command(f'"{python_path}" -m pip install --upgrade pip')
+    run_command([str(python_path), "-m", "pip", "install", "--upgrade", "pip"])
     
     # Install dependencies from requirements.txt
     print("\nInstalling dependencies from requirements.txt...")
     requirements_path = backend_dir.parent / "requirements.txt"
-    run_command(f'"{pip_path}" install -r "{requirements_path}"')
+    run_command([str(pip_path), "install", "-r", str(requirements_path)])
     
     return python_path
 
@@ -109,16 +104,15 @@ def run_backend(python_path):
     """Run the FastAPI backend server."""
     print("\nStarting the backend server...")
     try:
-        run_command(f'"{python_path}" -m uvicorn main:app --reload --host 0.0.0.0 --port 8000')
+        run_command([str(python_path), "-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"])
     except Exception as e:
         print(f"Error starting the server: {str(e)}")
         print("\nTrying alternative method...")
-        # Try running uvicorn directly
         if sys.platform == "win32":
-            uvicorn_path = Path(python_path).parent / "uvicorn.exe"
+            uvicorn_path = Path(python_path).parent / "uvicorn"
         else:
             uvicorn_path = Path(python_path).parent / "uvicorn"
-        run_command(f'"{uvicorn_path}" main:app --reload --host 0.0.0.0 --port 8000')
+        run_command([str(uvicorn_path), "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"])
 
 def main():
     try:
@@ -138,10 +132,10 @@ def main():
         print("\nTroubleshooting steps:")
         print("1. Make sure you have Python 3.8 or higher installed")
         print("2. Try running these commands manually:")
-        print(f'   "{sys.executable}" -m venv ".venv"')
-        print('   .venv/Scripts/pip install --upgrade pip')
-        print('   .venv/Scripts/pip install -r ../requirements.txt')
-        print('   .venv/Scripts/python -m uvicorn main:app --reload')
+        print(f'   {sys.executable} -m venv .venv')
+        print('   .venv/bin/pip install --upgrade pip')
+        print('   .venv/bin/pip install -r ../requirements.txt')
+        print('   .venv/bin/python -m uvicorn main:app --reload')
         sys.exit(1)
 
 if __name__ == "__main__":
